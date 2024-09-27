@@ -126,7 +126,6 @@ const ContentManagementUI = () => {
     return { x: 0, y: 0 };
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const addProject = useCallback(() => {
     const newProjectId = Date.now().toString();
     const newProject = { id: newProjectId, name: 'Untitled' };
@@ -139,7 +138,6 @@ const ContentManagementUI = () => {
     setActiveProject(project);
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const closeProject = useCallback((projectToClose) => {
     if (projects.length > 1) {
       setProjects(prev => prev.filter(p => p.id !== projectToClose.id));
@@ -157,7 +155,6 @@ const ContentManagementUI = () => {
     setEditingProject(project.id);
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const finishRenameProject = useCallback((project, newName) => {
     if (newName.trim() && newName !== project.name) {
       setProjects(prev => prev.map(p => p.id === project.id ? { ...p, name: newName } : p));
@@ -166,7 +163,7 @@ const ContentManagementUI = () => {
       }
     }
     setEditingProject(null);
-  }, [activeProject]);
+  }, [activeProject, setProjects]);
 
   const addWindow = useCallback(() => {
     const currentWindows = projectWindows[activeProject.id] || [];

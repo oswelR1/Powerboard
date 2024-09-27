@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Error loading user data:', error);
       handleLogout();
     }
-  }, [handleLogout]);
+  }, [handleLogout, setProjects, setProjectWindows]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
