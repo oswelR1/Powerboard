@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { PlusCircle, Layout, X, Trash2, Eye, Palette, RotateCcw, RotateCw, Clipboard, FileUp } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, useContext } from 'react';
+import { PlusCircle, Layout, X, Trash2, Eye, Palette, RotateCcw, RotateCw, Clipboard, FileUp, LogOut } from 'lucide-react';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -8,6 +8,8 @@ import ContentEditable from 'react-contenteditable';
 import { applyTextFormat as applyTextFormatUtil } from '../utils/textFormatting';
 import WindowContent from './WindowContent';
 import { isValidUrl } from '../utils/urlValidator';
+import { AuthContext } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -98,10 +100,9 @@ const customStyles = `
 `;
 
 const ContentManagementUI = () => {
+  const { user, handleLogout, projects, setProjects, projectWindows, setProjectWindows, saveUserData } = useContext(AuthContext);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeProject, setActiveProject] = useState({ id: '1', name: 'Untitled' });
-  const [projects, setProjects] = useState([{ id: '1', name: 'Untitled' }]);
-  const [projectWindows, setProjectWindows] = useState({ '1': [] });
   const [previewWindow, setPreviewWindow] = useState(null);
   const [colorPaletteOpen, setColorPaletteOpen] = useState(false);
   const [textColorPaletteOpen, setTextColorPaletteOpen] = useState(false);
@@ -109,10 +110,11 @@ const ContentManagementUI = () => {
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [editingProject, setEditingProject] = useState(null);
+  const navigate = useNavigate();
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
 
-  const findAvailablePosition = useCallback((windows) => {
+  const findAvailablePosition = useCallback((windows = []) => {
     const occupiedPositions = new Set(windows.map(w => `${w.x},${w.y}`));
     for (let y = 0; y < 1000; y++) {
       for (let x = 0; x < 4; x++) {
@@ -124,18 +126,20 @@ const ContentManagementUI = () => {
     return { x: 0, y: 0 };
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const addProject = useCallback(() => {
     const newProjectId = Date.now().toString();
     const newProject = { id: newProjectId, name: 'Untitled' };
     setProjects(prev => [...prev, newProject]);
     setProjectWindows(prev => ({ ...prev, [newProjectId]: [] }));
     setActiveProject(newProject);
-  }, []);
+  }, [setProjectWindows]);
 
   const switchProject = useCallback((project) => {
     setActiveProject(project);
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const closeProject = useCallback((projectToClose) => {
     if (projects.length > 1) {
       setProjects(prev => prev.filter(p => p.id !== projectToClose.id));
@@ -147,12 +151,13 @@ const ContentManagementUI = () => {
         setActiveProject(projects.find(p => p.id !== projectToClose.id) || projects[0]);
       }
     }
-  }, [projects, activeProject]);
+  }, [projects, activeProject, setProjectWindows]);
 
   const startRenameProject = useCallback((project) => {
     setEditingProject(project.id);
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const finishRenameProject = useCallback((project, newName) => {
     if (newName.trim() && newName !== project.name) {
       setProjects(prev => prev.map(p => p.id === project.id ? { ...p, name: newName } : p));
@@ -164,7 +169,8 @@ const ContentManagementUI = () => {
   }, [activeProject]);
 
   const addWindow = useCallback(() => {
-    const { x, y } = findAvailablePosition(projectWindows[activeProject.id]);
+    const currentWindows = projectWindows[activeProject.id] || [];
+    const { x, y } = findAvailablePosition(currentWindows);
     const newWindow = {
       i: `${Date.now()}`,
       x,
@@ -176,9 +182,9 @@ const ContentManagementUI = () => {
     };
     setProjectWindows(prev => ({
       ...prev,
-      [activeProject.id]: [...prev[activeProject.id], newWindow]
+      [activeProject.id]: [...(prev[activeProject.id] || []), newWindow]
     }));
-  }, [activeProject, projectWindows, findAvailablePosition]);
+  }, [activeProject, projectWindows, findAvailablePosition, setProjectWindows]);
 
   const addWindowFromClipboard = useCallback(async () => {
     try {
@@ -240,7 +246,7 @@ const ContentManagementUI = () => {
       console.error('Failed to read clipboard contents:', err);
       alert('Unable to read from clipboard. Please check your browser permissions.');
     }
-  }, [activeProject, projectWindows, findAvailablePosition]);
+  }, [activeProject, projectWindows, findAvailablePosition, setProjectWindows]);
 
   const addWindowFromFile = useCallback(() => {
     const input = document.createElement('input');
@@ -282,14 +288,14 @@ const ContentManagementUI = () => {
       }
     };
     input.click();
-  }, [activeProject, projectWindows, findAvailablePosition]);
+  }, [activeProject, projectWindows, findAvailablePosition, setProjectWindows]);
 
   const removeWindow = useCallback((id) => {
     setProjectWindows(prev => ({
       ...prev,
       [activeProject.id]: prev[activeProject.id].filter(window => window.i !== id)
     }));
-  }, [activeProject]);
+  }, [activeProject, setProjectWindows]);
 
   const openPreview = useCallback((window, e) => {
     e.stopPropagation();
@@ -323,7 +329,7 @@ const ContentManagementUI = () => {
       setPreviewWindow(prev => ({ ...prev, bgColor: color }));
     }
     setColorPaletteOpen(false);
-  }, [previewWindow, activeProject]);
+  }, [previewWindow, activeProject, setProjectWindows]);
 
   const handlePreviewEdit = useCallback((event) => {
     const newContent = event.target.value;
@@ -337,7 +343,7 @@ const ContentManagementUI = () => {
     
     setHistory(prev => [...prev.slice(0, historyIndex + 1), newContent]);
     setHistoryIndex(prev => prev + 1);
-  }, [previewWindow, historyIndex, activeProject]);
+  }, [previewWindow, historyIndex, activeProject, setProjectWindows]);
 
   const handleTextFormat = useCallback((format, color = '') => {
     if (!previewRef.current) return;
@@ -356,7 +362,7 @@ const ContentManagementUI = () => {
     setHistoryIndex(prev => prev + 1);
     
     previewRef.current.focus();
-  }, [previewWindow, historyIndex, activeProject]);
+  }, [previewWindow, historyIndex, activeProject, setProjectWindows]);
 
   const undo = useCallback(() => {
     if (historyIndex > 0) {
@@ -370,7 +376,7 @@ const ContentManagementUI = () => {
         )
       }));
     }
-  }, [historyIndex, history, previewWindow, activeProject]);
+  }, [historyIndex, history, previewWindow, activeProject, setProjectWindows]);
 
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
@@ -384,7 +390,7 @@ const ContentManagementUI = () => {
         )
       }));
     }
-  }, [historyIndex, history, previewWindow, activeProject]);
+  }, [historyIndex, history, previewWindow, activeProject, setProjectWindows]);
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -431,7 +437,7 @@ const ContentManagementUI = () => {
         )
       }));
     }
-  }, [previewWindow, activeProject]);
+  }, [previewWindow, activeProject, setProjectWindows]);
 
   useEffect(() => {
     return saveFormattedContent;
@@ -448,17 +454,59 @@ const ContentManagementUI = () => {
 
   // Update the layout change handler
   const onLayoutChange = useCallback((newLayout) => {
-    setProjectWindows(prev => ({
-      ...prev,
-      [activeProject.id]: prev[activeProject.id].map(window => {
-        const layoutItem = newLayout.find(item => item.i === window.i);
-        return layoutItem ? { ...window, x: layoutItem.x, y: layoutItem.y, w: layoutItem.w, h: layoutItem.h } : window;
-      })
-    }));
-  }, [activeProject]);
+    setProjectWindows(prev => {
+      const currentWindows = prev[activeProject.id] || [];
+      if (currentWindows.length === 0) {
+        console.warn(`No windows found for project with id ${activeProject.id}`);
+        return prev;
+      }
+      
+      return {
+        ...prev,
+        [activeProject.id]: currentWindows.map(window => {
+          const layoutItem = newLayout.find(item => item.i === window.i);
+          return layoutItem ? { ...window, x: layoutItem.x, y: layoutItem.y, w: layoutItem.w, h: layoutItem.h } : window;
+        })
+      };
+    });
+  }, [activeProject, setProjectWindows]);
 
   // Get the current project's windows
   const currentWindows = projectWindows[activeProject.id] || [];
+
+  const onLogout = useCallback(() => {
+    const logoutSuccessful = handleLogout();
+    if (logoutSuccessful) {
+      navigate('/login', { replace: true });
+    }
+  }, [handleLogout, navigate]);
+
+  // Update the saveUserData call
+  useEffect(() => {
+    const saveTimer = setTimeout(() => {
+      if (user) {
+        saveUserData();
+      }
+    }, 2000);
+
+    return () => clearTimeout(saveTimer);
+  }, [projects, projectWindows, user, saveUserData]);
+
+  // Add this useEffect to log activeProject when it changes
+  useEffect(() => {
+    console.log('Active project changed:', activeProject);
+  }, [activeProject]);
+
+  useEffect(() => {
+    if (user) {
+      setProjects(user.projects || []);
+      const windows = {};
+      user.projects.forEach(project => {
+        windows[project.id] = project.windows || [];
+      });
+      setProjectWindows(windows);
+    }
+  }, [user, setProjects, setProjectWindows]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-200/50">
@@ -501,8 +549,11 @@ const ContentManagementUI = () => {
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
-                <span className={`flex-grow ${activeProject.id === project.id ? 'font-bold' : ''}`}>
-                  {project.name}
+                <span 
+                  className={`flex-grow ${activeProject.id === project.id ? 'font-bold' : ''}`}
+                  style={{ color: 'black', fontSize: '16px' }} // Temporary style for debugging
+                >
+                  {project.name || 'Unnamed Project'}
                 </span>
               )}
               <button 
@@ -517,6 +568,16 @@ const ContentManagementUI = () => {
             </div>
           ))}
         </nav>
+        {/* Add logout button */}
+        <div className="mt-auto p-4">
+          <button
+            onClick={onLogout}
+            className={`flex items-center text-gray-700 hover:bg-gray-200/50 py-2 rounded-lg w-full ${!isSidebarOpen && 'justify-center'}`}
+          >
+            <LogOut size={18} />
+            {isSidebarOpen && <span className="ml-2">Logout</span>}
+          </button>
+        </div>
       </div>
 
       {/* Main content */}

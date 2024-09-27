@@ -1,0 +1,442 @@
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { PlusCircle, Layout, X, Trash2, Eye, Palette, RotateCcw, RotateCw } from 'lucide-react';
+import { Responsive, WidthProvider } from 'react-grid-layout';
+import DOMPurify from 'dompurify';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+import Toolbar from './Toolbar';
+import ContentEditable from 'react-contenteditable';
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const customStyles = `
+  .react-grid-item.react-grid-placeholder {
+    background: none !important;
+    opacity: 0 !important;
+    border: none !important;
+  }
+  .node-frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    cursor: move;
+  }
+  .node-content {
+    position: absolute;
+    top: 32px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    overflow: auto;
+  }
+  .node-buttons {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .node-button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    margin-left: 4px;
+    color: rgba(0, 0, 0, 0.5);
+    transition: color 0.2s;
+    pointer-events: auto;
+  }
+  .node-button:hover {
+    color: rgba(0, 0, 0, 0.8);
+  }
+  .resize-handle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 20px;
+    height: 20px;
+    cursor: se-resize;
+  }
+`;
+
+const ContentManagementUI = () => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeProject, setActiveProject] = useState('Project A');
+  const [projects, setProjects] = useState(['Project A', 'Project B', 'Project C']);
+  const [windows, setWindows] = useState([
+    { i: '1', x: 0, y: 0, w: 2, h: 2, content: 'This is Project A and first project doing with new content management app power.', bgColor: 'bg-white/80' },
+    { i: '2', x: 2, y: 0, w: 1, h: 1, content: '#2nd Note', bgColor: 'bg-green-100/80' },
+    { i: '3', x: 3, y: 0, w: 1, h: 1, content: '#3rd Note', bgColor: 'bg-purple-100/80' },
+    { i: '4', x: 0, y: 2, w: 1, h: 1, content: 'Image#1', bgColor: 'bg-white/80' },
+    { i: '5', x: 1, y: 2, w: 2, h: 1, content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', bgColor: 'bg-white/80' },
+    { i: '6', x: 3, y: 2, w: 1, h: 1, content: 'https://example.com/article', bgColor: 'bg-white/80' },
+  ]);
+  const [previewWindow, setPreviewWindow] = useState(null);
+  const [colorPaletteOpen, setColorPaletteOpen] = useState(false);
+  const [textColorPaletteOpen, setTextColorPaletteOpen] = useState(false);
+  const previewRef = useRef(null);
+  const [activeFormats, setActiveFormats] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  const toggleSidebar = useCallback(() => setIsSidebarOpen(!isSidebarOpen), [isSidebarOpen]);
+
+  const onLayoutChange = useCallback((layout) => {
+    setWindows(prevWindows => prevWindows.map(window => {
+      const updatedLayout = layout.find(item => item.i === window.i);
+      return { ...window, ...updatedLayout };
+    }));
+  }, []);
+
+  const addProject = useCallback(() => {
+    const newProject = `Project ${projects.length + 1}`;
+    setProjects(prevProjects => [...prevProjects, newProject]);
+    setActiveProject(newProject);
+  }, [projects.length]);
+
+  const switchProject = useCallback((project) => {
+    setActiveProject(project);
+    // TODO: Implement logic to load project-specific windows
+  }, []);
+
+  const closeProject = useCallback((project) => {
+    if (projects.length > 1) {
+      setProjects(prevProjects => {
+        const updatedProjects = prevProjects.filter(p => p !== project);
+        if (activeProject === project) {
+          setActiveProject(updatedProjects[0]);
+        }
+        return updatedProjects;
+      });
+    }
+  }, [projects.length, activeProject]);
+
+  const addWindow = useCallback(() => {
+    const newWindow = {
+      i: `${windows.length + 1}`,
+      x: (windows.length * 2) % 12,
+      y: Infinity,
+      w: 2,
+      h: 2,
+      content: '',
+      bgColor: 'bg-white/80'
+    };
+    setWindows(prevWindows => [...prevWindows, newWindow]);
+  }, [windows.length]);
+
+  const removeWindow = useCallback((id, e) => {
+    e.stopPropagation();
+    setWindows(prevWindows => prevWindows.filter(window => window.i !== id));
+  }, []);
+
+  const openPreview = useCallback((window, e) => {
+    e.stopPropagation();
+    setPreviewWindow(window);
+  }, []);
+
+  const closePreview = useCallback(() => {
+    setPreviewWindow(null);
+    setColorPaletteOpen(false);
+    setTextColorPaletteOpen(false);
+  }, []);
+
+  const toggleColorPalette = useCallback(() => {
+    setColorPaletteOpen(prev => !prev);
+    setTextColorPaletteOpen(false);
+  }, []);
+
+  const toggleTextColorPalette = useCallback(() => {
+    setTextColorPaletteOpen(prev => !prev);
+    setColorPaletteOpen(false);
+  }, []);
+
+  const changeWindowColor = useCallback((color) => {
+    if (previewWindow) {
+      setWindows(prevWindows => prevWindows.map(w =>
+        w.i === previewWindow.i ? { ...w, bgColor: color } : w
+      ));
+      setPreviewWindow(prev => ({ ...prev, bgColor: color }));
+    }
+    setColorPaletteOpen(false);
+  }, [previewWindow]);
+
+  const handlePreviewEdit = useCallback((event) => {
+    const newContent = event.target.value;
+    setPreviewWindow((prev) => ({ ...prev, content: newContent }));
+    setWindows((prevWindows) =>
+      prevWindows.map((w) =>
+        w.i === previewWindow.i ? { ...w, content: newContent } : w
+      )
+    );
+    
+    // Add to history
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(newContent);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  }, [previewWindow, history, historyIndex]);
+
+  const applyTextFormat = useCallback((format, color = '') => {
+    if (!previewRef.current) return;
+    
+    document.execCommand('styleWithCSS', false, true);
+    switch (format) {
+      case 'bold':
+      case 'italic':
+      case 'underline':
+        document.execCommand(format, false, null);
+        break;
+      case 'h1':
+      case 'h2':
+      case 'h3':
+        document.execCommand('formatBlock', false, format);
+        break;
+      case 'highlight':
+        document.execCommand('hiliteColor', false, 'yellow');
+        break;
+      case 'color':
+        document.execCommand('foreColor', false, color);
+        break;
+    }
+    
+    previewRef.current.focus();
+  }, []);
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      const previousContent = history[historyIndex - 1];
+      setPreviewWindow((prev) => ({ ...prev, content: previousContent }));
+      setWindows((prevWindows) =>
+        prevWindows.map((w) =>
+          w.i === previewWindow.i ? { ...w, content: previousContent } : w
+        )
+      );
+    }
+  }, [historyIndex, history, previewWindow]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      const nextContent = history[historyIndex + 1];
+      setPreviewWindow((prev) => ({ ...prev, content: nextContent }));
+      setWindows((prevWindows) =>
+        prevWindows.map((w) =>
+          w.i === previewWindow.i ? { ...w, content: nextContent } : w
+        )
+      );
+    }
+  }, [historyIndex, history, previewWindow]);
+
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      document.execCommand('insertLineBreak');
+    }
+
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key) {
+        case 'b': 
+          e.preventDefault();
+          applyTextFormat('bold'); 
+          break;
+        case 'i': 
+          e.preventDefault();
+          applyTextFormat('italic'); 
+          break;
+        case 'u': 
+          e.preventDefault();
+          applyTextFormat('underline'); 
+          break;
+        case 'z':
+          e.preventDefault();
+          if (e.shiftKey) {
+            redo();
+          } else {
+            undo();
+          }
+          break;
+      }
+    }
+  }, [applyTextFormat, undo, redo]);
+
+  const saveFormattedContent = useCallback(() => {
+    if (previewRef.current && previewWindow) {
+      const formattedContent = previewRef.current.innerHTML;
+      setWindows(prevWindows => prevWindows.map(w =>
+        w.i === previewWindow.i ? { ...w, content: formattedContent } : w
+      ));
+    }
+  }, [previewWindow]);
+
+  useEffect(() => {
+    return () => {
+      saveFormattedContent();
+    };
+  }, [saveFormattedContent]);
+
+  const colorOptions = [
+    'bg-white/80', 'bg-red-100/80', 'bg-yellow-100/80', 
+    'bg-green-100/80', 'bg-blue-100/80', 'bg-purple-100/80'
+  ];
+
+  const textColorOptions = ['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
+
+  const renderWindowContent = useCallback((content) => {
+    if (content.startsWith('https://www.youtube.com')) {
+      return (
+        <iframe
+          width="100%"
+          height="100%"
+          src={`https://www.youtube.com/embed/${content.split('v=')[1]}`}
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          title="YouTube video"
+        ></iframe>
+      );
+    } else if (content.startsWith('http://') || content.startsWith('https://')) {
+      return (
+        <iframe src={content} width="100%" height="100%" frameBorder="0" title="External content"></iframe>
+      );
+    } else if (content.startsWith('data:image')) {
+      return <img src={content} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />;
+    } else {
+      return <div className="text-gray-700 text-sm" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }} />;
+    }
+  }, []);
+
+  return (
+    <div className="flex h-screen bg-gray-200/50">
+      <style>{customStyles}</style>
+
+      {/* Sidebar */}
+      <div className={`bg-gray-100/80 shadow-lg transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-16'}`}>
+        <div className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className={`text-xl font-semibold text-red-800 ${!isSidebarOpen && 'hidden'}`}>Power</h2>
+            <button onClick={toggleSidebar} className="w-8 h-8 flex items-center justify-center focus:outline-none">
+              <Layout size={20} className={`transform transition-transform ${isSidebarOpen ? 'rotate-0' : 'rotate-180'}`} />
+            </button>
+          </div>
+          <button onClick={addProject} className={`flex items-center text-gray-700 hover:bg-gray-200/50 py-2 rounded-lg w-full ${!isSidebarOpen && 'justify-center'}`}>
+            <PlusCircle size={18} />
+            {isSidebarOpen && <span className="ml-2">Start new</span>}
+          </button>
+        </div>
+        <nav className={`mt-4 ${!isSidebarOpen && 'hidden'}`}>
+          {projects.map((project, index) => (
+            <div key={index} className="flex items-center justify-between px-4 py-2 text-gray-600 hover:bg-gray-200/50">
+              <button onClick={() => switchProject(project)} className={`${activeProject === project ? 'font-bold' : ''}`}>{project}</button>
+              <button onClick={() => closeProject(project)}><X size={16} /></button>
+            </div>
+          ))}
+        </nav>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 p-6 bg-gray-300/30 relative">
+        <ResponsiveGridLayout
+          className="layout"
+          layouts={{ lg: windows }}
+          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+          cols={{ lg: 4, md: 4, sm: 2, xs: 1, xxs: 1 }}
+          rowHeight={150}
+          onLayoutChange={onLayoutChange}
+          isDraggable={true}
+          isResizable={true}
+          resizeHandle={<div className="resize-handle" />}
+          margin={[16, 16]}
+          draggableHandle=".node-frame"
+        >
+          {windows.map((window) => (
+            <div
+              key={window.i}
+              className={`rounded-3xl shadow-lg ${window.bgColor} relative overflow-hidden
+                          transition-all duration-200 hover:shadow-xl select-none`}
+            >
+              <div className="node-frame"></div>
+              <div className="node-buttons">
+                <button 
+                  onClick={(e) => openPreview(window, e)} 
+                  className="node-button"
+                >
+                  <Eye size={16} />
+                </button>
+                <button 
+                  onClick={(e) => removeWindow(window.i, e)} 
+                  className="node-button"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+              <div className="node-content">
+                {renderWindowContent(window.content)}
+              </div>
+              <div className="resize-handle" />
+            </div>
+          ))}
+        </ResponsiveGridLayout>
+        <button
+          onClick={addWindow}
+          className="absolute bottom-6 right-6 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors duration-200"
+        >
+          <div className="w-6 h-6 relative">
+            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-800"></div>
+            <div className="absolute top-0 left-1/2 w-0.5 h-full bg-red-800"></div>
+          </div>
+        </button>
+
+        {/* Preview Window */}
+        {previewWindow && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className={`p-6 rounded-lg w-2/3 h-2/3 ${previewWindow.bgColor} relative`}>
+              <div className="absolute top-2 right-2 flex space-x-2">
+                <button onClick={undo} className="w-8 h-8 rounded-full bg-gray-300/50 flex items-center justify-center hover:bg-gray-400/50">
+                  <RotateCcw size={16} />
+                </button>
+                <button onClick={redo} className="w-8 h-8 rounded-full bg-gray-300/50 flex items-center justify-center hover:bg-gray-400/50">
+                  <RotateCw size={16} />
+                </button>
+                <button onClick={toggleColorPalette} className="w-8 h-8 rounded-full bg-gray-300/50 flex items-center justify-center hover:bg-gray-400/50">
+                  <Palette size={16} />
+                </button>
+                <button onClick={closePreview} className="w-8 h-8 rounded-full bg-gray-300/50 flex items-center justify-center hover:bg-gray-400/50">
+                  <X size={16} />
+                </button>
+              </div>
+              <Toolbar
+                activeFormats={activeFormats}
+                onFormatClick={applyTextFormat}
+                onColorClick={toggleTextColorPalette}
+                textColorOptions={textColorOptions}
+                textColorPaletteOpen={textColorPaletteOpen}
+              />
+              <ContentEditable
+                innerRef={previewRef}
+                html={previewWindow.content}
+                disabled={false}
+                onChange={handlePreviewEdit}
+                onKeyDown={handleKeyDown}
+                className="mt-12 h-full overflow-auto p-4"
+                style={{ 
+                  whiteSpace: 'pre-wrap', 
+                  wordBreak: 'break-word',
+                  outline: 'none',
+                  caretColor: 'auto'
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default React.memo(ContentManagementUI);
