@@ -133,7 +133,7 @@ const ContentManagementUI = () => {
     setProjects(prev => [...prev, newProject]);
     setProjectWindows(prev => ({ ...prev, [newProjectId]: [] }));
     setActiveProject(newProject);
-  }, [setProjectWindows]);
+  }, [setProjectWindows, setProjects]);
 
   const switchProject = useCallback((project) => {
     setActiveProject(project);
@@ -151,7 +151,7 @@ const ContentManagementUI = () => {
         setActiveProject(projects.find(p => p.id !== projectToClose.id) || projects[0]);
       }
     }
-  }, [projects, activeProject, setProjectWindows]);
+  }, [projects, activeProject, setProjectWindows, setProjects]);
 
   const startRenameProject = useCallback((project) => {
     setEditingProject(project.id);

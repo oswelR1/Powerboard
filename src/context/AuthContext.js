@@ -9,6 +9,14 @@ export const AuthProvider = ({ children }) => {
   const [projects, setProjects] = useState([]);
   const [projectWindows, setProjectWindows] = useState({});
 
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('token');
+    setUser(null);
+    setProjects([]);
+    setProjectWindows({});
+    return true;
+  }, []);
+
   const loadUserData = useCallback(async (token) => {
     try {
       const userData = await getUser(token);
@@ -25,7 +33,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Error loading user data:', error);
       handleLogout();
     }
-  }, []);
+  }, [handleLogout]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -50,14 +58,6 @@ export const AuthProvider = ({ children }) => {
       throw error;
     }
   };
-
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('token');
-    setUser(null);
-    setProjects([]);
-    setProjectWindows({});
-    return true;
-  }, []);
 
   const handleRegister = async (name, email, password) => {
     try {
