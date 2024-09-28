@@ -8,13 +8,19 @@ exports.register = async (req, res) => {
     console.log('Attempting to register user:', email);
     let user = await User.findOne({ email });
     if (user) {
+      console.log('User already exists:', email);
       return res.status(400).json({ msg: 'User already exists' });
     }
     user = new User({ name, email, password, avatar });
     await user.save();
+    console.log('User saved successfully:', email);
     const payload = { user: { id: user.id } };
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
-      if (err) throw err;
+      if (err) {
+        console.error('JWT sign error:', err);
+        throw err;
+      }
+      console.log('JWT generated successfully for:', email);
       res.json({ token });
     });
   } catch (err) {

@@ -28,6 +28,12 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something broke!');
 });
 
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ msg: 'Server error', error: err.message });
+});
+
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
 app.get('*', (req, res) => {
