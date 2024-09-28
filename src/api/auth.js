@@ -10,13 +10,16 @@ export const register = async (name, email, password, avatar) => {
       body: JSON.stringify({ name, email, password, avatar }),
     });
     
-    const data = await res.json();
+    // Log the raw response
+    const rawResponse = await res.text();
+    console.log('Raw server response:', rawResponse);
     
     if (!res.ok) {
-      throw new Error(data.msg || 'Registration failed');
+      throw new Error(rawResponse || 'Registration failed');
     }
     
-    return data;
+    // Only parse as JSON if the response is not empty
+    return rawResponse ? JSON.parse(rawResponse) : {};
   } catch (error) {
     console.error('Registration error:', error);
     throw error;
