@@ -21,6 +21,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// API routes
 app.use('/api/auth', authRoutes);
 
 // Error handling middleware
@@ -28,11 +29,5 @@ app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({ msg: 'Server error', error: err.message });
 });
-
-const PORT = process.env.PORT || 5000;
-
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
-}
 
 module.exports = app;
