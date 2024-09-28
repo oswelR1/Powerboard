@@ -6,14 +6,20 @@ exports.register = async (req, res) => {
   const { name, email, password, avatar } = req.body;
   try {
     console.log('Attempting to register user:', email);
+    console.log('Request body:', req.body);
+    
     let user = await User.findOne({ email });
     if (user) {
       console.log('User already exists:', email);
       return res.status(400).json({ msg: 'User with this email already exists' });
     }
+    
     user = new User({ name, email, password, avatar });
+    console.log('New user object:', user);
+    
     await user.save();
     console.log('User saved successfully:', email);
+    
     const payload = { user: { id: user.id } };
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
       if (err) {
@@ -25,7 +31,7 @@ exports.register = async (req, res) => {
     });
   } catch (err) {
     console.error('Registration error:', err);
-    res.status(500).json({ msg: 'Server error during registration', error: err.message });
+    res.status(500).json({ msg: 'Server error during registration', error: err.message, stack: err.stack });
   }
 };
 

@@ -20,20 +20,22 @@ connectDB()
     // Logging middleware
     app.use((req, res, next) => {
       console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+      console.log('Request body:', req.body);
       next();
     });
 
     // API routes
     app.use('/api/auth', authRoutes);
 
+    // Test route
+    app.get('/api/test', (req, res) => {
+      res.json({ message: 'Backend is working' });
+    });
+
     // Error handling middleware
     app.use((err, req, res, next) => {
       console.error('Error:', err);
-      res.status(500).json({ msg: 'Server error', error: err.message });
-    });
-
-    app.get('/api/test', (req, res) => {
-      res.json({ message: 'Backend is working' });
+      res.status(500).json({ msg: 'Server error', error: err.message, stack: err.stack });
     });
 
     const PORT = process.env.PORT || 5000;
