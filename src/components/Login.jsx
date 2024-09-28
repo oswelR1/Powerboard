@@ -26,7 +26,11 @@ const Login = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError(error.message || 'Login failed. Please try again.');
+      if (error.message === 'No account found with this email. Please sign up first.') {
+        setError('No account found. Please sign up first.');
+      } else {
+        setError(error.message || 'Login failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
