@@ -14,23 +14,15 @@
     "routes": [
       {
         "src": "/api/(.*)",
-        "dest": "/backend/server.js"
-      },
-      {
-        "src": "/static/(.*)",
-        "dest": "/static/$1"
-      },
-      {
-        "src": "/favicon.ico",
-        "dest": "/favicon.ico"
-      },
-      {
-        "src": "/manifest.json",
-        "dest": "/manifest.json"
+        "dest": "backend/server.js"
       },
       {
         "src": "/(.*)",
         "dest": "/index.html"
       }
-    ]
+    ],
+    "env": {
+      "MONGO_URI": "@mongo_uri",
+      "JWT_SECRET": "@jwt_secret"
+    }
   }

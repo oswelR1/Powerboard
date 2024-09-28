@@ -10,16 +10,13 @@ export const register = async (name, email, password, avatar) => {
       body: JSON.stringify({ name, email, password, avatar }),
     });
     
-    // Log the raw response
-    const rawResponse = await res.text();
-    console.log('Raw server response:', rawResponse);
+    const data = await res.json();
     
     if (!res.ok) {
-      throw new Error(rawResponse || 'Registration failed');
+      throw new Error(data.msg || 'Registration failed');
     }
     
-    // Only parse as JSON if the response is not empty
-    return rawResponse ? JSON.parse(rawResponse) : {};
+    return data;
   } catch (error) {
     console.error('Registration error:', error);
     throw error;
@@ -35,11 +32,14 @@ export const login = async (email, password) => {
       },
       body: JSON.stringify({ email, password }),
     });
+    
+    const data = await res.json();
+    
     if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.msg || 'Login failed');
+      throw new Error(data.msg || 'Login failed');
     }
-    return res.json();
+    
+    return data;
   } catch (error) {
     console.error('Login error:', error);
     throw error;
