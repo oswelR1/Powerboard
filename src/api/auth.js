@@ -3,14 +3,23 @@ const API_URL = process.env.NODE_ENV === 'production'
   : 'http://localhost:5000/api/auth';
 
 export const register = async (name, email, password, avatar) => {
-  const res = await fetch(`${API_URL}/register`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ name, email, password, avatar }),
-  });
-  return res.json();
+  try {
+    const res = await fetch(`${API_URL}/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name, email, password, avatar }),
+    });
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.msg || 'Registration failed');
+    }
+    return res.json();
+  } catch (error) {
+    console.error('Registration error:', error);
+    throw error;
+  }
 };
 
 export const login = async (email, password) => {
@@ -22,26 +31,14 @@ export const login = async (email, password) => {
       },
       body: JSON.stringify({ email, password }),
     });
-    
-    console.log('Response status:', res.status);
-    console.log('Response headers:', Object.fromEntries(res.headers.entries()));
-    
-    const rawResponse = await res.text();
-    console.log('Raw response:', rawResponse);
-    
     if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
+      const errorData = await res.json();
+      throw new Error(errorData.msg || 'Login failed');
     }
-    
-    try {
-      return JSON.parse(rawResponse);
-    } catch (error) {
-      console.error('Error parsing JSON:', error);
-      return { error: 'Invalid server response', rawResponse };
-    }
+    return res.json();
   } catch (error) {
-    console.error('Fetch error:', error);
-    return { error: error.message };
+    console.error('Login error:', error);
+    throw error;
   }
 };
 
