@@ -12,12 +12,17 @@ router.post(
     check('email', 'Please include a valid email').isEmail(),
     check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 }),
   ],
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    authController.register(req, res);
+    try {
+      await authController.register(req, res);
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({ msg: 'Server error', error: error.message });
+    }
   }
 );
 
@@ -27,12 +32,17 @@ router.post(
     check('email', 'Please include a valid email').isEmail(),
     check('password', 'Password is required').exists(),
   ],
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    authController.login(req, res);
+    try {
+      await authController.login(req, res);
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ msg: 'Server error', error: error.message });
+    }
   }
 );
 

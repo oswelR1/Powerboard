@@ -18,7 +18,7 @@ exports.register = async (req, res) => {
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
       if (err) {
         console.error('JWT sign error:', err);
-        throw err;
+        return res.status(500).json({ msg: 'Error generating token', error: err.message });
       }
       console.log('JWT generated successfully for:', email);
       res.json({ token });
