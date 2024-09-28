@@ -35,6 +35,12 @@ try {
         res.json({ message: 'Backend is working', env: process.env.NODE_ENV });
       });
 
+      // Catch-all route for debugging
+      app.use('*', (req, res) => {
+        console.log(`Unhandled route: ${req.method} ${req.originalUrl}`);
+        res.status(404).json({ message: 'Route not found' });
+      });
+
       // Error handling middleware
       app.use((err, req, res, next) => {
         console.error('Error:', err);
